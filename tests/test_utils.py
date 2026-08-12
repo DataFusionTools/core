@@ -452,3 +452,126 @@ class TestUtilsTools:
             str(exc_info.value)
             == "The number of points requested (3) is smaller than the number of points provided (1)."
         )
+
+    def test_find_closer_points_with_footprint_aggregates(self):
+        main = Data(
+            location=Geometry(0, 0, 0),
+            independent_variable=Variable(label="time", value=np.array([1, 2, 3])),
+            variables=[Variable(label="other", value=np.array([0, 0, 0]))],
+        )
+        near = Data(
+            location=Geometry(1, 0, 0),
+            independent_variable=Variable(label="time", value=np.array([1, 2, 3])),
+            variables=[Variable(label="value", value=np.array([2, 2, 2]))],
+        )
+        far = Data(
+            location=Geometry(10, 0, 0),
+            independent_variable=Variable(label="time", value=np.array([1, 2, 3])),
+            variables=[Variable(label="value", value=np.array([99, 99, 99]))],
+        )
+        inputs_ml = CreateInputsML()
+        result = inputs_ml.find_closer_points(
+            input_data=[main],
+            combined_data=[near, far],
+            aggregate_method=AggregateMethod.SUM,
+            aggregate_variable="value",
+            footprint=2.0,
+        )
+        added_var = result[0].get_variable("value")
+        # SUM of [2,2,2] = 6, replicated across length-3 variable
+        assert np.all(added_var.value == 6)
+
+    def test_find_closer_points_with_footprint_and_number_of_points_raises(self):
+        main = Data(
+            location=Geometry(0, 0, 0),
+            independent_variable=Variable(label="time", value=np.array([1])),
+            variables=[Variable(label="other", value=np.array([0]))],
+        )
+        inputs_ml = CreateInputsML()
+        with pytest.raises(ValueError):
+            inputs_ml.find_closer_points(
+                input_data=[main],
+                combined_data=[main],
+                aggregate_method=AggregateMethod.SUM,
+                aggregate_variable="other",
+                footprint=2.0,
+                number_of_points=3,
+            )
+
+    def test_get_features_in_a_footprint_returns_within_radius(self):
+        point_compare = Geometry(x=0, y=0, z=0)
+        variable_1 = Data(
+            location=Geometry(1, 0, 0), variables=[Variable(label="point_1", value=[1])]
+        )
+        variable_2 = Data(
+            location=Geometry(2, 2, 2), variables=[Variable(label="point_2", value=[1])]
+        )
+        variable_3 = Data(
+            location=Geometry(0, 0, 1), variables=[Variable(label="point_3", value=[1])]
+        )
+        variable_4 = Data(
+            location=Geometry(5, 5, 5), variables=[Variable(label="point_4", value=[1])]
+        )
+        inputs_ml = CreateInputsML()
+        test_result = inputs_ml.get_features_in_a_footprint(
+            point_compare,
+            [variable_1, variable_2, variable_3, variable_4],
+            footprint=2.0,
+        )
+        assert len(test_result) == 2
+        labels = [d.variables[0].label for d in test_result]
+        assert "point_1" in labels
+        assert "point_3" in labels
+
+    def test_get_features_in_a_footprint_exact_boundary(self):
+        point_compare = Geometry(x=0, y=0, z=0)
+        variable_1 = Data(
+            location=Geometry(1, 0, 0), variables=[Variable(label="point_1", value=[1])]
+        )
+        variable_2 = Data(
+            location=Geometry(2, 0, 0), variables=[Variable(label="point_2", value=[1])]
+        )
+        inputs_ml = CreateInputsML()
+        # point_1 is at distance 1.0, point_2 is at distance 2.0; footprint=1.0 should include point_1 only
+        test_result = inputs_ml.get_features_in_a_footprint(
+            point_compare,
+            [variable_1, variable_2],
+            footprint=1.0,
+        )
+        assert len(test_result) == 1
+        assert test_result[0].variables[0].label == "point_1"
+
+    def test_get_features_in_a_footprint_returns_empty_when_none_in_range(self):
+        point_compare = Geometry(x=0, y=0, z=0)
+        variable_1 = Data(
+            location=Geometry(10, 10, 10), variables=[Variable(label="point_1", value=[1])]
+        )
+        variable_2 = Data(
+            location=Geometry(20, 20, 20), variables=[Variable(label="point_2", value=[1])]
+        )
+        inputs_ml = CreateInputsML()
+        test_result = inputs_ml.get_features_in_a_footprint(
+            point_compare,
+            [variable_1, variable_2],
+            footprint=1.0,
+        )
+        assert test_result == []
+
+    def test_get_features_in_a_footprint_returns_all_when_all_in_range(self):
+        point_compare = Geometry(x=0, y=0, z=0)
+        variable_1 = Data(
+            location=Geometry(1, 0, 0), variables=[Variable(label="point_1", value=[1])]
+        )
+        variable_2 = Data(
+            location=Geometry(0, 1, 0), variables=[Variable(label="point_2", value=[1])]
+        )
+        variable_3 = Data(
+            location=Geometry(0, 0, 1), variables=[Variable(label="point_3", value=[1])]
+        )
+        inputs_ml = CreateInputsML()
+        test_result = inputs_ml.get_features_in_a_footprint(
+            point_compare,
+            [variable_1, variable_2, variable_3],
+            footprint=2.0,
+        )
+        assert len(test_result) == 3

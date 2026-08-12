@@ -283,6 +283,29 @@ class CreateInputsML:
         ]
         return closer_extracted_features
 
+    def get_features_in_a_footprint(
+        self,
+        point_compare: Geometry, combined_data: List[Data],
+        footprint: float,
+    ):
+        """
+        Function that returns all features that are within a footprint of a point
+
+        :param point_compare: point to compare with
+        :param combined_data: list of data to compare with
+        :param footprint: footprint distance to consider
+        """
+        closer_extracted_features = []
+        for counter, combined_feature in enumerate(combined_data):
+            distance = math.sqrt(
+                (point_compare.x - combined_feature.location.x) ** 2
+                + (point_compare.y - combined_feature.location.y) ** 2
+                + (point_compare.z - combined_feature.location.z) ** 2
+            )
+            if distance <= footprint:
+                closer_extracted_features.append(combined_feature)
+        return closer_extracted_features
+
     def aggregate_extracted_features(
         self,
         agrregate_method: AggregateMethod,
@@ -371,16 +394,24 @@ class CreateInputsML:
         number_of_points: int = 1,
         interpolate_on_independent_variable: bool = False,
         bounds_error: bool = False,
-        fill_value: Union[str, np.array, List] = 'extrapolate'
+        fill_value: Union[str, np.array, List] = 'extrapolate',
+        footprint: float = None,
     ):
         """
         Function that finds the closest point and aggregates results and returns those aggregated results
         """
+        if footprint is not None and number_of_points != 1:
+            raise ValueError("Provide either 'footprint' or 'number_of_points', not both.")
         # loop through all input data
         for main_features in input_data:
-            closer_extracted_features = self.get_k_closest_features(
-                main_features.location, combined_data, number_of_points
-            )
+            if footprint is not None:
+                closer_extracted_features = self.get_features_in_a_footprint(
+                    main_features.location, combined_data, footprint
+                )
+            else:
+                closer_extracted_features = self.get_k_closest_features(
+                    main_features.location, combined_data, number_of_points
+                )
             # aggregate method
             if interpolate_on_independent_variable:
                 self.interpolate_on_independent_variable(
