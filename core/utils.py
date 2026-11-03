@@ -354,7 +354,7 @@ class CreateInputsML:
         aggregate_method: AggregateMethod,
         aggregate_variable: str,
         bounds_error: bool = False,
-        fill_value: Union[str, np.array, List] = 'extrapolate'
+        fill_value: Union[str, np.ndarray, List] = 'extrapolate'
     ):
         new_values = []
         for closer_extracted_feature in closer_extracted_features:
@@ -394,7 +394,7 @@ class CreateInputsML:
         number_of_points: int = 1,
         interpolate_on_independent_variable: bool = False,
         bounds_error: bool = False,
-        fill_value: Union[str, np.array, List] = 'extrapolate',
+        fill_value: Union[str, np.ndarray, List] = 'extrapolate',
         footprint: float = None,
     ):
         """
