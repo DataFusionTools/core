@@ -14,7 +14,7 @@ class Geometry:
 @dataclass
 class Variable:
     label: str
-    value: np.array
+    value: np.ndarray
 
 
 @dataclass
